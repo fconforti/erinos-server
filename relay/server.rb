@@ -2,6 +2,8 @@ require "sinatra/base"
 require "json"
 
 class Server < Sinatra::Base
+  set :host_authorization, permitted_hosts: []
+
   TTL = 300 # 5 minutes
 
   set :oauth_store, {}

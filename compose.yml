@@ -12,6 +12,8 @@ services:
 
   relay:
     build: relay
+    ports:
+      - "4568:4568"
     environment:
       - HEADSCALE_URL=http://headscale:8080
     depends_on:
