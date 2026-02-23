@@ -16,6 +16,9 @@ services:
       - "4568:4568"
     environment:
       - HEADSCALE_URL=http://headscale:8080
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
+      - RELAY_PUBLIC_URL=${RELAY_PUBLIC_URL:-https://auth.erinos.net}
     depends_on:
       - headscale
     restart: unless-stopped
