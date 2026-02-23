@@ -6,6 +6,3 @@ auth.{$DOMAIN} {
 	reverse_proxy relay:4568
 }
 
-api.{$DOMAIN} {
-	reverse_proxy relay:4568
-}
