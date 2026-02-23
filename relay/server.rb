@@ -17,6 +17,14 @@ class Server < Sinatra::Base
       client_id: ENV["SPOTIFY_CLIENT_ID"],
       client_secret: ENV["SPOTIFY_CLIENT_SECRET"],
       scopes: "user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private"
+    },
+    "google" => {
+      authorize_url: "https://accounts.google.com/o/oauth2/v2/auth",
+      token_url: "https://oauth2.googleapis.com/token",
+      client_id: ENV["GOOGLE_CLIENT_ID"],
+      client_secret: ENV["GOOGLE_CLIENT_SECRET"],
+      scopes: "https://www.googleapis.com/auth/calendar",
+      extra_params: { access_type: "offline", prompt: "consent" }
     }
   }.freeze
 
@@ -45,13 +53,15 @@ class Server < Sinatra::Base
     purge_expired
     oauth_store[state] = { provider: provider, status: :pending, created_at: Time.now }
 
-    query = URI.encode_www_form(
+    query_params = {
       client_id: config[:client_id],
       response_type: "code",
       redirect_uri: "#{RELAY_PUBLIC_URL}/oauth/callback",
       scope: config[:scopes],
       state: state
-    )
+    }
+    query_params.merge!(config[:extra_params]) if config[:extra_params]
+    query = URI.encode_www_form(query_params)
 
     redirect "#{config[:authorize_url]}?#{query}", 302
   end
