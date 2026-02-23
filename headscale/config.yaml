@@ -1,0 +1,23 @@
+server_url: https://hs.localhost
+listen_addr: 0.0.0.0:8080
+noise:
+  private_key_path: /var/lib/headscale/noise_private.key
+prefixes:
+  v4: 100.64.0.0/10
+  v6: fd7a:115c:a1e0::/48
+database:
+  type: sqlite3
+  sqlite:
+    path: /var/lib/headscale/db.sqlite
+derp:
+  server:
+    enabled: false
+  urls:
+    - https://controlplane.tailscale.com/derpmap/default
+dns:
+  base_domain: localhost
+  magic_dns: true
+  nameservers:
+    global:
+      - 1.1.1.1
+      - 9.9.9.9

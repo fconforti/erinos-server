@@ -1,0 +1,40 @@
+services:
+  headscale:
+    image: headscale/headscale:0.25.1
+    command: serve
+    read_only: true
+    tmpfs:
+      - /var/run/headscale
+    volumes:
+      - headscale-data:/var/lib/headscale
+      - ./headscale/config.yaml:/etc/headscale/config.yaml:ro
+    restart: unless-stopped
+
+  relay:
+    build: relay
+    environment:
+      - HEADSCALE_URL=http://headscale:8080
+    depends_on:
+      - headscale
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - relay
+      - headscale
+    restart: unless-stopped
+
+volumes:
+  headscale-data:
+  caddy-data:
+  caddy-config:

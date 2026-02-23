@@ -1,0 +1,11 @@
+hs.{$DOMAIN} {
+	reverse_proxy headscale:8080
+}
+
+auth.{$DOMAIN} {
+	reverse_proxy relay:4568
+}
+
+api.{$DOMAIN} {
+	reverse_proxy relay:4568
+}
