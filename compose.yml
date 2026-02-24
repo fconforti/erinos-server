@@ -8,6 +8,15 @@ services:
     volumes:
       - headscale-data:/var/lib/headscale
       - ./headscale/config.yaml:/etc/headscale/config.yaml:ro
+    environment:
+      - HEADSCALE_SERVER_URL=https://hs.${DOMAIN}
+      - HEADSCALE_DNS_BASE_DOMAIN=ts.${DOMAIN}
+    healthcheck:
+      test: ["CMD", "headscale", "configtest"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   relay:
@@ -16,13 +25,17 @@ services:
       - "4568:4568"
     environment:
       - HEADSCALE_URL=http://headscale:8080
+      - HEADSCALE_API_KEY=${HEADSCALE_API_KEY}
+      - REGISTER_SECRET=${REGISTER_SECRET}
+      - DOMAIN=${DOMAIN}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - RELAY_PUBLIC_URL=${RELAY_PUBLIC_URL:-https://auth.erinos.net}
     depends_on:
-      - headscale
+      headscale:
+        condition: service_healthy
     restart: unless-stopped
 
   caddy:

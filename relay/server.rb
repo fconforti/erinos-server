@@ -9,6 +9,10 @@ class Server < Sinatra::Base
   TTL = 300 # 5 minutes
 
   RELAY_PUBLIC_URL = ENV.fetch("RELAY_PUBLIC_URL", "https://auth.erinos.net")
+  HEADSCALE_URL    = ENV.fetch("HEADSCALE_URL", "http://headscale:8080")
+  HEADSCALE_API_KEY = ENV["HEADSCALE_API_KEY"]
+  REGISTER_SECRET  = ENV["REGISTER_SECRET"]
+  DOMAIN           = ENV.fetch("DOMAIN", "erinos.net")
 
   PROVIDERS = {
     "spotify" => {
@@ -37,6 +41,22 @@ class Server < Sinatra::Base
 
     def purge_expired
       oauth_store.delete_if { |_, v| Time.now - v[:created_at] > TTL }
+    end
+
+    def headscale_get(path)
+      uri = URI("#{HEADSCALE_URL}#{path}")
+      req = Net::HTTP::Get.new(uri)
+      req["Authorization"] = "Bearer #{HEADSCALE_API_KEY}"
+      Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
+    end
+
+    def headscale_post(path, body)
+      uri = URI("#{HEADSCALE_URL}#{path}")
+      req = Net::HTTP::Post.new(uri)
+      req["Authorization"] = "Bearer #{HEADSCALE_API_KEY}"
+      req["Content-Type"] = "application/json"
+      req.body = body.to_json
+      Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(req) }
     end
   end
 
@@ -166,8 +186,44 @@ class Server < Sinatra::Base
   # Registration
   post "/register" do
     content_type :json
-    status 501
-    { todo: "Create Headscale user + pre-auth key" }.to_json
+
+    halt 503, { error: "registration not configured" }.to_json unless REGISTER_SECRET && HEADSCALE_API_KEY
+
+    body = JSON.parse(request.body.read)
+    secret = body["secret"]
+    device_name = body["device_name"]
+
+    halt 400, { error: "missing secret or device_name" }.to_json unless secret && device_name
+    halt 403, { error: "invalid secret" }.to_json unless Rack::Utils.secure_compare(secret, REGISTER_SECRET)
+
+    # Sanitize device_name: lowercase alphanumeric + hyphens, max 63 chars
+    user = device_name.downcase.gsub(/[^a-z0-9-]/, "-").gsub(/-+/, "-").sub(/^-/, "").sub(/-$/, "")[0, 63]
+    halt 400, { error: "invalid device_name" }.to_json if user.empty?
+
+    # Ensure Headscale user exists
+    unless headscale_get("/api/v1/user/#{user}").is_a?(Net::HTTPSuccess)
+      res = headscale_post("/api/v1/user", { name: user })
+      halt 502, { error: "failed to create user: #{res.body}" }.to_json unless res.is_a?(Net::HTTPSuccess)
+    end
+
+    # Create single-use pre-auth key (1 hour expiry)
+    expiration = (Time.now + 3600).utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    res = headscale_post("/api/v1/preauthkey", {
+      user: user,
+      reusable: false,
+      ephemeral: false,
+      expiration: expiration
+    })
+    halt 502, { error: "failed to create preauthkey: #{res.body}" }.to_json unless res.is_a?(Net::HTTPSuccess)
+
+    key_data = JSON.parse(res.body)
+    auth_key = key_data.dig("preAuthKey", "key")
+
+    {
+      auth_key: auth_key,
+      login_server: "https://hs.#{DOMAIN}",
+      user: user
+    }.to_json
   end
 
   # Health

@@ -1,3 +1,5 @@
+# Overridden at runtime by HEADSCALE_SERVER_URL and HEADSCALE_DNS_BASE_DOMAIN
+# env vars in compose.yml (Viper env var override).
 server_url: https://hs.localhost
 listen_addr: 0.0.0.0:8080
 noise:
